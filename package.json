@@ -1,39 +1,39 @@
 {
-  "name": "@b127/crypto",
-  "version": "0.1.0",
-  "description": "File encryption in Nodejs",
-  "keywords": [
-    "encryption",
-    "decryption",
-    "crypto"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Barry127/crypto.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Barry127/crypto/issues"
-  },
-  "author": "Barry de Kleijn <kleijn.barry@gmail.com>",
-  "type": "module",
-  "exports": {
-    "default": "./dist/index.js",
-    "types": "./dist/index.d.ts"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "scripts": {
-    "clear": "rimraf dist",
-    "build": "npm run clear && tsc",
-    "prepare": "npm run test && npm run build",
-    "test": "tsc --noEmit && vitest run",
-    "test:watch": "vitest"
-  },
-  "devDependencies": {
-    "@types/node": "^22.5.2",
-    "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
-  }
+	"name": "@b127/crypto",
+	"version": "0.4.0",
+	"description": "File encryption in Nodejs",
+	"keywords": [
+		"encryption",
+		"decryption",
+		"crypto"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Barry127/crypto.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Barry127/crypto/issues"
+	},
+	"author": "Barry de Kleijn <kleijn.barry@gmail.com>",
+	"type": "module",
+	"exports": {
+		"default": "./dist/index.js",
+		"types": "./dist/index.d.ts"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"scripts": {
+		"clear": "rimraf dist",
+		"build": "npm run clear && tsc",
+		"prepare": "npm run test && npm run build",
+		"test": "tsc --noEmit && vitest run",
+		"test:watch": "vitest"
+	},
+	"devDependencies": {
+		"@types/node": "^22.5.2",
+		"typescript": "^5.5.4",
+		"vitest": "^2.0.5"
+	}
 }
