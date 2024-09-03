@@ -4,7 +4,7 @@ import zlib from 'node:zlib';
 import { CryptoError } from './cryptoError.js';
 import { encodePassphrase } from './encodePassphrase.js';
 import { fileExists } from './fileExists.js';
-import { decodeMetadata, META_LENGTH, Metadata } from './metadata.js';
+import { decodeMetadata, META_LENGTH } from './metadata.js';
 import { DecryptToStreamResult } from './types.js';
 
 export async function decryptToStream(
@@ -17,35 +17,24 @@ export async function decryptToStream(
   const stat = await fs.promises.lstat(file);
   if (!stat.isFile()) throw new CryptoError(`${file} is not a file`);
 
-  return new Promise<DecryptToStreamResult>((resolve, reject) => {
+  try {
     const readMetadata = fs.createReadStream(file, { end: META_LENGTH - 1 });
-    let metadata: Metadata;
+    const buffers: any[] = [];
+    for await (const chunk of readMetadata) buffers.push(chunk);
 
-    readMetadata.on('data', (chunk) => {
-      try {
-        metadata = decodeMetadata(chunk as string);
-      } catch (err) {
-        reject(err);
-      }
-    });
+    const metadata = decodeMetadata(Buffer.concat(buffers).toString());
 
-    readMetadata.on('close', () => {
-      const decipher = crypto.createDecipheriv(
-        'aes-256-ctr',
-        encodePassphrase(passphrase),
-        metadata.iv
-      );
-      const unzip = zlib.createUnzip();
-      const input = fs.createReadStream(file, { start: META_LENGTH });
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      encodePassphrase(passphrase),
+      metadata.iv
+    );
+    decipher.setAuthTag(metadata.tag);
+    const unzip = zlib.createUnzip();
+    const input = fs.createReadStream(file, { start: META_LENGTH });
 
-      resolve({
-        metadata,
-        stream: input.pipe(decipher).pipe(unzip)
-      });
-    });
-
-    readMetadata.on('error', (err) => {
-      reject(new CryptoError(err.message));
-    });
-  });
+    return { metadata, stream: input.pipe(decipher).pipe(unzip) };
+  } catch (err: any) {
+    throw new CryptoError(err.message);
+  }
 }

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Transform, TransformCallback, TransformOptions } from 'node:stream';
 import { CryptoError } from './cryptoError.js';
 
-export const META_LENGTH = 256;
+export const META_LENGTH = 512;
 
 export class AppendMetadata extends Transform {
   #metadata: string;
@@ -50,6 +50,7 @@ export function decodeMetadata(encodedMetadata: string): Metadata {
     const json = Buffer.from(base64, 'base64').toString();
     const data = JSON.parse(json);
     data.iv = Buffer.from(data.iv);
+    data.tag = Buffer.from(data.tag);
     return data;
   } catch {
     throw new CryptoError('Invalid metadata');
@@ -58,6 +59,7 @@ export function decodeMetadata(encodedMetadata: string): Metadata {
 
 export interface Metadata {
   iv: Buffer;
+  tag: Buffer;
   file: string;
   ext: string;
   version?: string;

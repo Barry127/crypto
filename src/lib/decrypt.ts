@@ -1,12 +1,13 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import zlib from 'node:zlib';
 import { CryptoError } from './cryptoError.js';
 import { decryptDir } from './decryptDir.js';
 import { encodePassphrase } from './encodePassphrase.js';
 import { fileExists } from './fileExists.js';
-import { decodeMetadata, META_LENGTH, Metadata } from './metadata.js';
+import { decodeMetadata, META_LENGTH } from './metadata.js';
 import { DecryptResult } from './types.js';
 
 export async function decrypt(
@@ -22,65 +23,36 @@ export async function decrypt(
   if (stat.isDirectory()) return decryptDir(file, passphrase, targetDir);
   if (!stat.isFile()) throw new CryptoError(`${file} is not a file`);
 
-  return new Promise((resolve, reject) => {
-    const readMetadata = fs.createReadStream(file, { end: META_LENGTH - 1 });
+  const readMetadata = fs.createReadStream(file, { end: META_LENGTH - 1 });
+  const buffers: any[] = [];
+  for await (const chunk of readMetadata) buffers.push(chunk);
 
-    let metadata: Metadata;
-    let target: string;
+  try {
+    const metadata = decodeMetadata(Buffer.concat(buffers).toString());
+    const baseTarget = path.join(
+      path.resolve(targetDir),
+      targetFileName || metadata.file
+    );
 
-    readMetadata.on('data', (chunk) => {
-      try {
-        metadata = decodeMetadata(chunk as string);
-      } catch (err) {
-        reject(err);
-      }
+    let target = baseTarget + metadata.ext;
+    let i = 0;
+    while (fs.existsSync(target)) {
+      target = `${baseTarget}${i++}${metadata.ext}`;
+    }
 
-      const baseTarget = path.join(
-        path.resolve(targetDir),
-        targetFileName || metadata.file
-      );
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      encodePassphrase(passphrase),
+      metadata.iv
+    );
+    decipher.setAuthTag(metadata.tag);
+    const unzip = zlib.createUnzip();
+    const input = fs.createReadStream(file, { start: META_LENGTH });
+    const output = fs.createWriteStream(target);
 
-      target = baseTarget + metadata.ext;
-      let i = 0;
-      while (fs.existsSync(target)) {
-        target = `${baseTarget}${i++}${metadata.ext}`;
-      }
-    });
-
-    readMetadata.on('close', () => {
-      const decipher = crypto.createDecipheriv(
-        'aes-256-ctr',
-        encodePassphrase(passphrase),
-        metadata.iv
-      );
-      const unzip = zlib.createUnzip();
-      const input = fs.createReadStream(file, { start: META_LENGTH });
-      const output = fs.createWriteStream(target);
-
-      input.pipe(decipher).pipe(unzip).pipe(output);
-
-      output.on('finish', () =>
-        resolve({ file, target: path.join(targetDir, path.basename(target)) })
-      );
-
-      decipher.on('error', (err) => {
-        fs.unlinkSync(target);
-        reject(new CryptoError(err.message));
-      });
-
-      unzip.on('error', (err) => {
-        fs.unlinkSync(target);
-        reject(new CryptoError(err.message));
-      });
-
-      output.on('error', (err) => {
-        fs.unlinkSync(target);
-        reject(new CryptoError(err.message));
-      });
-    });
-
-    readMetadata.on('error', (err) => {
-      reject(new CryptoError(err.message));
-    });
-  });
+    await pipeline(input, decipher, unzip, output);
+    return { file, target: path.join(targetDir, path.basename(target)) };
+  } catch (err: any) {
+    throw new CryptoError(err.message);
+  }
 }

@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import zlib from 'node:zlib';
 import { VERSION } from '../index.js';
 import { CryptoError } from './cryptoError.js';
@@ -28,6 +30,10 @@ export async function encrypt(
     path.resolve(targetDir),
     targetFileName || `${path.basename(file, ext)}`
   );
+  const tmpFile = path.resolve(
+    os.tmpdir(),
+    crypto.randomBytes(16).toString('hex')
+  );
 
   const baseTarget = target;
   let i = 0;
@@ -36,35 +42,41 @@ export async function encrypt(
     target = `${baseTarget}${i++}`;
   }
 
-  return new Promise((resolve, reject) => {
+  try {
     const iv = crypto.randomBytes(16);
     const gzip = zlib.createGzip();
     const cipher = crypto.createCipheriv(
-      'aes-256-ctr',
+      'aes-256-gcm',
       encodePassphrase(passphrase),
       iv
+    );
+
+    await pipeline(
+      fs.createReadStream(file),
+      gzip,
+      cipher,
+      fs.createWriteStream(tmpFile)
     );
 
     const appendMetadata = new AppendMetadata(
       encodeMetadata({
         ext,
         file: path.basename(file, ext),
+        tag: cipher.getAuthTag(),
         iv,
         version: VERSION
       })
     );
-
-    const input = fs.createReadStream(file);
-    const output = fs.createWriteStream(target);
-
-    input.pipe(gzip).pipe(cipher).pipe(appendMetadata).pipe(output);
-
-    output.on('finish', () =>
-      resolve({ file, target: path.join(targetDir, path.basename(target)) })
+    await pipeline(
+      fs.createReadStream(tmpFile),
+      appendMetadata,
+      fs.createWriteStream(target)
     );
-
-    output.on('error', (err) => {
-      reject(new CryptoError(err.message));
-    });
-  });
+    await fs.promises.unlink(tmpFile);
+    return { file, target: path.join(targetDir, path.basename(target)) };
+  } catch (err: any) {
+    if (await fileExists(target)) await fs.promises.unlink(target);
+    if (await fileExists(tmpFile)) await fs.promises.unlink(tmpFile);
+    throw new CryptoError(err.message);
+  }
 }

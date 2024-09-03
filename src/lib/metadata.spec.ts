@@ -43,6 +43,7 @@ describe('metadata', () => {
     it('should encode metadata object into a base64 string', () => {
       const metadata = {
         iv: Buffer.from('1234567890123456'),
+        tag: Buffer.from('1234567890123456'),
         file: 'example.txt',
         ext: 'txt',
         version: '1.0'
@@ -55,6 +56,7 @@ describe('metadata', () => {
     it('should use random bytes for padding', () => {
       const metadata = {
         iv: Buffer.from('1234567890123456'),
+        tag: Buffer.from('1234567890123456'),
         file: 'example.txt',
         ext: 'txt',
         version: '1.0'
@@ -72,6 +74,7 @@ describe('metadata', () => {
     it('should decode valid encoded metadata string to Metadata object', () => {
       const metadata = {
         iv: Buffer.from('1234567890123456'),
+        tag: Buffer.from('1234567890123456'),
         file: 'example.txt',
         ext: 'txt',
         version: '1.0'
