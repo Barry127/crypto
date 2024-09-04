@@ -7,7 +7,8 @@ import { CryptoError } from './cryptoError.js';
 import { decryptDir } from './decryptDir.js';
 import { encodePassphrase } from './encodePassphrase.js';
 import { fileExists } from './fileExists.js';
-import { decodeMetadata, META_LENGTH } from './metadata.js';
+import { getMetadata } from './getMetadata.js';
+import { META_LENGTH } from './metadata.js';
 import { DecryptResult } from './types.js';
 
 export async function decrypt(
@@ -23,12 +24,8 @@ export async function decrypt(
   if (stat.isDirectory()) return decryptDir(file, passphrase, targetDir);
   if (!stat.isFile()) throw new CryptoError(`${file} is not a file`);
 
-  const readMetadata = fs.createReadStream(file, { end: META_LENGTH - 1 });
-  const buffers: any[] = [];
-  for await (const chunk of readMetadata) buffers.push(chunk);
-
   try {
-    const metadata = decodeMetadata(Buffer.concat(buffers).toString());
+    const metadata = await getMetadata(file);
     const baseTarget = path.join(
       path.resolve(targetDir),
       targetFileName || metadata.file
@@ -47,7 +44,8 @@ export async function decrypt(
     );
     decipher.setAuthTag(metadata.tag);
     const unzip = zlib.createUnzip();
-    const input = fs.createReadStream(file, { start: META_LENGTH });
+    const { size } = await fs.promises.stat(file);
+    const input = fs.createReadStream(file, { end: size - META_LENGTH - 1 });
     const output = fs.createWriteStream(target);
 
     await pipeline(input, decipher, unzip, output);

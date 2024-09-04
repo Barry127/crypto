@@ -1,37 +1,7 @@
 import crypto from 'node:crypto';
-import { Transform, TransformCallback, TransformOptions } from 'node:stream';
 import { CryptoError } from './cryptoError.js';
 
 export const META_LENGTH = 512;
-
-export class AppendMetadata extends Transform {
-  #metadata: string;
-  #appended: boolean;
-
-  constructor(metadata: string, opts?: TransformOptions) {
-    super(opts);
-
-    if (metadata.length !== META_LENGTH)
-      throw new CryptoError('Invalid metadata length');
-
-    this.#metadata = metadata;
-    this.#appended = false;
-  }
-
-  override _transform(
-    chunk: any,
-    _encoding: string,
-    callback: TransformCallback
-  ): void {
-    if (!this.#appended) {
-      this.push(this.#metadata);
-      this.#appended = true;
-    }
-
-    this.push(chunk);
-    callback();
-  }
-}
 
 export function encodeMetadata(metadata: Metadata): string {
   const noise = Buffer.from(crypto.randomBytes(196)).toString('base64');

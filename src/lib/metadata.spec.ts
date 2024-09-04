@@ -1,44 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CryptoError } from './cryptoError.js';
-import {
-  AppendMetadata,
-  decodeMetadata,
-  encodeMetadata,
-  META_LENGTH
-} from './metadata.js';
+import { decodeMetadata, encodeMetadata, META_LENGTH } from './metadata.js';
 
 describe('metadata', () => {
-  describe('AppendMetadata', () => {
-    it('should append metadata once when transforming chunks', async () => {
-      let resolve: () => void;
-      const metadata = 'a'.repeat(META_LENGTH);
-      const appendMetadata = new AppendMetadata(metadata);
-      const chunks = ['chunk1', 'chunk2'];
-      const result: string[] = [];
-
-      appendMetadata.on('data', (chunk) => {
-        result.push(chunk.toString());
-      });
-
-      appendMetadata.on('end', () => {
-        expect(result).toEqual([metadata, ...chunks]);
-        resolve();
-      });
-
-      chunks.forEach((chunk) => appendMetadata.write(chunk));
-      appendMetadata.end();
-
-      return new Promise<void>((_resolve) => {
-        resolve = _resolve;
-      });
-    });
-
-    it('should throw CryptoError when metadata length is invalid', () => {
-      const invalidMetadata = 'invalid_length';
-      expect(() => new AppendMetadata(invalidMetadata)).toThrow(CryptoError);
-    });
-  });
-
   describe('encodeMetadata', () => {
     it('should encode metadata object into a base64 string', () => {
       const metadata = {
