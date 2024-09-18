@@ -1,6 +1,6 @@
 {
 	"name": "@b127/crypto",
-	"version": "0.4.2",
+	"version": "0.4.3",
 	"description": "File encryption in Nodejs",
 	"private": false,
 	"keywords": [
